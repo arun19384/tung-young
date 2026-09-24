@@ -164,7 +164,12 @@ export default function App() {
       <header className="site-header">
         <a className="brand" href="/" aria-label="ถึงยัง หน้าหลัก">
           <span className="brand-icon">
-            <TrainFront size={25} />
+            <img
+              src="/icons/train-shadow-96.png"
+              width="44"
+              height="44"
+              alt=""
+            />
           </span>
           <strong>
             ถึงยัง<span className="brand-dot">.</span>
@@ -199,6 +204,21 @@ export default function App() {
         </div>
       </header>
       <main>
+        {pwa.isIOS && !pwa.installed && (
+          <button className="iphone-install" onClick={() => setInfo(true)}>
+            <img
+              src="/icons/train-shadow-96.png"
+              width="44"
+              height="44"
+              alt=""
+            />
+            <span>
+              <strong>เพิ่ม “ถึงยัง” บนหน้าจอโฮม</strong>
+              <small>ใช้เป็นแอปบน iPhone · ดูวิธีติดตั้ง</small>
+            </span>
+            <Download size={20} />
+          </button>
+        )}
         <section className="intro">
           <div className="eyebrow">
             <span /> YOUR EVERYDAY TRAVEL BUDDY
@@ -638,12 +658,26 @@ export default function App() {
             </button>
           </div>
           <div className="help-content">
-            <h3>ติดตั้งบนมือถือ</h3>
+            <img
+              className="install-logo"
+              src="/icons/train-shadow-180.png"
+              width="80"
+              height="80"
+              alt="โลโก้ถึงยัง รูปรถไฟ"
+            />
+            <h3>{pwa.installed ? "ติดตั้งถึงยังแล้ว" : "ติดตั้งบน iPhone"}</h3>
+            <ol className="install-steps">
+              <li>เปิดเว็บไซต์นี้ใน Safari แล้วแตะปุ่มแชร์</li>
+              <li>เลือก “เพิ่มไปยังหน้าจอโฮม” แล้วแตะ “เพิ่ม”</li>
+              <li>
+                เปิดถึงยังจากไอคอนบนหน้าจอโฮม แล้วอนุญาตตำแหน่งเมื่อเริ่มเดินทาง
+              </li>
+            </ol>
             <p>
-              Android: เมนูเบราว์เซอร์ → ติดตั้งแอป
-              <br />
-              iPhone: Safari → แชร์ → เพิ่มไปยังหน้าจอโฮม
+              หากมีตัวเลือก “เปิดเป็นเว็บแอป” ให้เปิดไว้
+              การอนุญาตแจ้งเตือนให้ทำจากแอปที่เพิ่มบนหน้าจอโฮมแล้ว
             </p>
+            <p>Android: เมนูเบราว์เซอร์ → ติดตั้งแอป</p>
             {pwa.canInstall && (
               <button className="primary" onClick={() => void pwa.install()}>
                 <Download size={18} />

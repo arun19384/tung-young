@@ -4,12 +4,25 @@ interface InstallEvent extends Event {
   userChoice: Promise<{ outcome: string }>;
 }
 export function usePWA() {
+  const isIOS =
+    /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const [prompt, setPrompt] = useState<InstallEvent | null>(null);
   const [installed, setInstalled] = useState(
-    () => matchMedia("(display-mode: standalone)").matches,
+    () =>
+      matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true,
   );
   const [online, setOnline] = useState(navigator.onLine);
   useEffect(() => {
+    const displayMode = matchMedia("(display-mode: standalone)");
+    const displayChanged = () =>
+      setInstalled(
+        displayMode.matches ||
+          (navigator as Navigator & { standalone?: boolean }).standalone ===
+            true,
+      );
+    displayMode.addEventListener("change", displayChanged);
     const install = (e: Event) => {
       e.preventDefault();
       setPrompt(e as InstallEvent);
@@ -24,6 +37,7 @@ export function usePWA() {
     window.addEventListener("online", network);
     window.addEventListener("offline", network);
     return () => {
+      displayMode.removeEventListener("change", displayChanged);
       window.removeEventListener("beforeinstallprompt", install);
       window.removeEventListener("appinstalled", done);
       window.removeEventListener("online", network);
@@ -31,6 +45,7 @@ export function usePWA() {
     };
   }, []);
   return {
+    isIOS,
     installed,
     online,
     canInstall: !!prompt,

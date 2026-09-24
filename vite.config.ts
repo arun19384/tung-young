@@ -10,8 +10,16 @@ export default defineConfig({
       filename: "sw.js",
       registerType: "prompt",
       injectRegister: false,
-      includeAssets: ["icons/*.png", "icon.svg"],
-      injectManifest: { globPatterns: ["**/*.{js,css,html,png,svg,woff2}"] },
+      includeAssets: ["icons/train-shadow-*.png"],
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
+        globIgnores: [
+          "branding/**",
+          "icons/icon-*.png",
+          "icons/maskable-512.png",
+          "icon.svg",
+        ],
+      },
       manifest: {
         id: "/",
         name: "ถึงยัง — เพื่อนร่วมทาง BTS / MRT",
@@ -24,10 +32,18 @@ export default defineConfig({
         background_color: "#f5f8fc",
         theme_color: "#2474ef",
         icons: [
-          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
           {
-            src: "/icons/maskable-512.png",
+            src: "/icons/train-shadow-192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/icons/train-shadow-512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "/icons/train-shadow-maskable-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",

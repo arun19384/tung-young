@@ -78,8 +78,8 @@ export function useNotifications(
           if (reg)
             return reg.showNotification("ถึงยัง 🚆", {
               body,
-              icon: "/icons/icon-192.png",
-              badge: "/icons/icon-192.png",
+              icon: "/icons/train-shadow-192.png",
+              badge: "/icons/train-shadow-192.png",
               tag: `trip-${key}`,
               data: { url: "/" },
             });
