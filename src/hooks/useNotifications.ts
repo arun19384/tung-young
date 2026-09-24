@@ -7,10 +7,7 @@ export function useNotifications(
   tripKey: string,
 ) {
   const [enabled, setEnabled] = useState(() => read("alert") === true);
-  const [threshold, setThresholdState] = useState(() => {
-    const n = read("threshold");
-    return typeof n === "number" && [1, 2, 3].includes(n) ? n : 1;
-  });
+  const threshold = 1;
   const [message, setMessage] = useState("");
   const [capability, setCapability] = useState("");
   const fired = useRef(new Set<string>());
@@ -18,10 +15,6 @@ export function useNotifications(
     fired.current.clear();
     setMessage("");
   }, [tripKey]);
-  const setThreshold = (n: number) => {
-    setThresholdState(n);
-    save("threshold", n);
-  };
   const toggle = useCallback(async () => {
     if (enabled) {
       setEnabled(false);
@@ -88,5 +81,5 @@ export function useNotifications(
           setCapability("ส่งแจ้งเตือนระบบไม่ได้ แต่แสดงเตือนในแอปแล้ว"),
         );
   }, [result, active, enabled, threshold]);
-  return { enabled, threshold, setThreshold, toggle, message, capability };
+  return { enabled, toggle, message, capability };
 }

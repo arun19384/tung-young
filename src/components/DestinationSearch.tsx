@@ -8,13 +8,21 @@ export function DestinationSearch({
   recent,
   onSelect,
   onClose,
+  purpose = "destination",
+  fixedLineId,
+  excludedStationId,
 }: {
   current: Destination | null;
   recent: Destination[];
   onSelect: (d: Destination) => void;
   onClose: () => void;
+  purpose?: "origin" | "destination";
+  fixedLineId?: string;
+  excludedStationId?: string;
 }) {
-  const [lineId, setLineId] = useState(current?.lineId ?? lines[0].id);
+  const [lineId, setLineId] = useState(
+    fixedLineId ?? current?.lineId ?? lines[0].id,
+  );
   const [query, setQuery] = useState("");
   const line = getLine(lineId)!;
   const filtered = line.stations.filter((s) =>
@@ -23,9 +31,12 @@ export function DestinationSearch({
       .includes(query.toLowerCase().trim()),
   );
   return (
-    <Modal label="เลือกปลายทาง" onClose={onClose}>
+    <Modal
+      label={purpose === "origin" ? "เลือกสถานีที่ขึ้น" : "เลือกปลายทาง"}
+      onClose={onClose}
+    >
       <div className="modal-title">
-        <h2>ไปลงสถานีไหนดี?</h2>
+        <h2>{purpose === "origin" ? "ขึ้นจากสถานีไหน?" : "ไปลงสถานีไหนดี?"}</h2>
         <button className="icon-button" aria-label="ปิด" onClick={onClose}>
           <X />
         </button>
@@ -44,33 +55,41 @@ export function DestinationSearch({
         <>
           <h3 className="section-label">ปลายทางล่าสุด</h3>
           <div className="recent-list">
-            {recent.map((d) => (
-              <button
-                key={`${d.lineId}:${d.stationId}`}
-                onClick={() => onSelect(d)}
-              >
-                <Clock3 size={16} />
-                <strong>{getStation(d)?.nameTh}</strong>
-                <span>{getLine(d.lineId)?.name}</span>
-              </button>
-            ))}
+            {recent
+              .filter(
+                (d) =>
+                  (!fixedLineId || d.lineId === fixedLineId) &&
+                  d.stationId !== excludedStationId,
+              )
+              .map((d) => (
+                <button
+                  key={`${d.lineId}:${d.stationId}`}
+                  onClick={() => onSelect(d)}
+                >
+                  <Clock3 size={16} />
+                  <strong>{getStation(d)?.nameTh}</strong>
+                  <span>{getLine(d.lineId)?.name}</span>
+                </button>
+              ))}
           </div>
         </>
       )}
       <h3 className="section-label">เลือกสายรถไฟฟ้า</h3>
       <div className="line-filters">
-        {lines.map((l) => (
-          <button
-            key={l.id}
-            aria-pressed={l.id === lineId}
-            className={l.id === lineId ? "selected" : ""}
-            style={{ "--line-color": l.color } as React.CSSProperties}
-            onClick={() => setLineId(l.id)}
-          >
-            <span />
-            {l.name}
-          </button>
-        ))}
+        {lines
+          .filter((l) => !fixedLineId || l.id === fixedLineId)
+          .map((l) => (
+            <button
+              key={l.id}
+              aria-pressed={l.id === lineId}
+              className={l.id === lineId ? "selected" : ""}
+              style={{ "--line-color": l.color } as React.CSSProperties}
+              onClick={() => setLineId(l.id)}
+            >
+              <span />
+              {l.name}
+            </button>
+          ))}
       </div>
       <div className="station-list-heading">
         <h3 className="section-label">รายชื่อสถานี</h3>
@@ -80,6 +99,7 @@ export function DestinationSearch({
         {filtered.map((s) => (
           <button
             key={s.id}
+            disabled={s.id === excludedStationId}
             onClick={() => onSelect({ lineId, stationId: s.id })}
           >
             <span className="list-node" />

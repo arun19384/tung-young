@@ -20,7 +20,7 @@ export function Modal({
     const elements = () =>
       Array.from(
         ref.current?.querySelectorAll<HTMLElement>(
-          "button,input,select,a[href]",
+          "button:not(:disabled),input:not(:disabled),select:not(:disabled),a[href]",
         ) ?? [],
       );
     (

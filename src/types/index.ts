@@ -12,6 +12,7 @@ export interface Line {
   nameEn: string;
   color: string;
   stations: Station[];
+  edges?: { from: string; to: string }[];
 }
 export interface Destination {
   lineId: string;
