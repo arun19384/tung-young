@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.local
+.cache/
+.vercel/
+coverage/
+*.exe
+backend/config.yaml
+.env.*
+!.env.example
