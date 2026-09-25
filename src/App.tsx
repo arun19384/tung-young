@@ -306,10 +306,15 @@ export default function App() {
                   <RouteMap origin={origin!} destination={destination!} />
                   <div className="route-metrics">
                     <span><Clock3 size={18} /><strong>{estimate?.timeMin}–{estimate?.timeMax}</strong><small>นาที</small></span>
-                    <span><Banknote size={19} /><strong>฿{estimate?.fareMin}–{estimate?.fareMax}</strong><small>โดยประมาณ</small></span>
+                    <span><Banknote size={19} /><strong>฿{estimate?.fareMin}–{estimate?.fareMax}</strong><small>รวมทุกสาย</small></span>
                     <span><Repeat2 size={18} /><strong>{estimate?.transfers.length ?? 0}</strong><small>ครั้ง</small></span>
                   </div>
                   <p className="route-direction">{estimate?.railStops} สถานี · เริ่มไปทาง {route[1].nameTh}</p>
+                  <div className="fare-breakdown" aria-label="รายละเอียดค่าโดยสารแต่ละสาย">
+                    {estimate?.fareBreakdown.map((fare) => (
+                      <span key={fare.lineId}>{fare.lineName} ฿{fare.min}–{fare.max}</span>
+                    ))}
+                  </div>
                   {!!estimate?.transfers.length && (
                     <div className="transfer-list">
                       <strong>จุดต่อสาย</strong>

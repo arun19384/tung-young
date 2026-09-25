@@ -196,7 +196,15 @@
   margin-bottom: 8px;
 }
 .route-map-heading strong { color: #24496f; font-size: 13px; }
-.route-map-heading span { color: #8191a5; font-size: 10px; }
+.route-map-heading button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #2474df;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+}
 .route-map svg { display: block; width: 100%; height: auto; border-radius: 13px; }
 .route-map-label {
   fill: #274868;
@@ -218,6 +226,41 @@
 }
 .route-map-legend span { display: flex; align-items: center; gap: 4px; }
 .route-map-legend i { width: 13px; height: 4px; border-radius: 4px; }
+.route-map-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: #f7fbff;
+  padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+}
+.route-map-modal-header { display: flex; align-items: center; justify-content: space-between; color: #183f68; }
+.route-map-modal-header button,
+.route-map-controls button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: white;
+  color: #2474df;
+  box-shadow: 0 4px 14px #1f62a61c;
+}
+.route-map-viewport {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  margin: 12px 0;
+  border-radius: 16px;
+  background: #eef6ff;
+}
+.route-map-viewport > div { flex: none; min-width: 100%; transition: width .2s ease; }
+.route-map-modal svg { min-width: 100%; }
+.route-map-controls { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.route-map-controls span { min-width: 52px; text-align: center; color: #315779; font-weight: 700; }
+.route-map-controls button:disabled { color: #aab8c9; opacity: .55; }
 .route-metrics {
   display: flex;
   justify-content: space-between;
@@ -245,6 +288,8 @@
   color: #71839a;
   margin: 11px 0 0;
 }
+.fare-breakdown { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 9px; }
+.fare-breakdown span { padding: 4px 7px; border-radius: 10px; background: #e9f3ff; color: #52708f; font-size: 9px; }
 .transfer-list {
   margin-top: 12px;
   padding-top: 11px;

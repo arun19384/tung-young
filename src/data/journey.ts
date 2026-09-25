@@ -87,23 +87,27 @@ export function journeyEstimate(origin: Destination | null, destination: Destina
     }];
   });
   const railStops = route.slice(1).filter((stop, index) => stop.lineId === route[index].lineId).length;
-  const systems = new Map<string, number>();
+  const lineStops = new Map<string, number>();
   route.slice(1).forEach((stop, index) => {
     if (stop.lineId !== route[index].lineId) return;
-    const system = stop.lineId.startsWith("bts-") ? "bts" : "mrt";
-    systems.set(system, (systems.get(system) ?? 0) + 1);
+    lineStops.set(stop.lineId, (lineStops.get(stop.lineId) ?? 0) + 1);
   });
   let fareMin = 0, fareMax = 0;
-  for (const [system, stops] of systems) {
-    fareMin += system === "bts" ? 17 : 16;
-    fareMax += Math.min(system === "bts" ? 65 : 47, (system === "bts" ? 17 : 16) + stops * (system === "bts" ? 3 : 2));
-  }
+  const fareBreakdown = [...lineStops].map(([lineId, stops]) => {
+    const isBTS = lineId.startsWith("bts-");
+    const min = isBTS ? 17 : 16;
+    const max = Math.min(isBTS ? 65 : 47, min + stops * (isBTS ? 3 : 2));
+    fareMin += min;
+    fareMax += max;
+    return { lineId, lineName: getLine(lineId)!.name, min, max };
+  });
   return {
     railStops,
     timeMin: railStops * 2 + transfers.length * 5,
     timeMax: railStops * 3 + transfers.length * 10 + 5,
     fareMin,
     fareMax,
+    fareBreakdown,
     transfers,
   };
 }
