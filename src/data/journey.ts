@@ -87,29 +87,28 @@ export function journeyEstimate(origin: Destination | null, destination: Destina
     }];
   });
   const railStops = route.slice(1).filter((stop, index) => stop.lineId === route[index].lineId).length;
-  const lineStops = new Map<string, number>();
-  route.slice(1).forEach((stop, index) => {
-    if (stop.lineId !== route[index].lineId) return;
-    lineStops.set(stop.lineId, (lineStops.get(stop.lineId) ?? 0) + 1);
-  });
-  let fareMin = 0, fareMax = 0;
-  const fareBreakdown = [...lineStops].map(([lineId, stops]) => {
-    const isBTS = lineId.startsWith("bts-");
-    const min = isBTS ? 17 : 16;
-    const max = Math.min(isBTS ? 65 : 47, min + stops * (isBTS ? 3 : 2));
-    fareMin += min;
-    fareMax += max;
-    return { lineId, lineName: getLine(lineId)!.name, min, max };
-  });
   return {
     railStops,
     timeMin: railStops * 2 + transfers.length * 5,
     timeMax: railStops * 3 + transfers.length * 10 + 5,
-    fareMin,
-    fareMax,
-    fareBreakdown,
     transfers,
   };
+}
+
+export function journeyFareSegments(origin: Destination | null, destination: Destination | null) {
+  const route = journeyDestinations(origin, destination);
+  const segments: { network: "bts" | "mrt"; from: Destination; to: Destination }[] = [];
+  let start = 0;
+  const network = (lineId: string): "bts" | "mrt" => lineId.startsWith("bts-") ? "bts" : "mrt";
+  for (let index = 1; index <= route.length; index++) {
+    if (index < route.length && network(route[index].lineId) === network(route[start].lineId)) continue;
+    const from = route[start];
+    const to = route[index - 1];
+    if (from && to && (from.lineId !== to.lineId || from.stationId !== to.stationId))
+      segments.push({ network: network(from.lineId), from, to });
+    start = index;
+  }
+  return segments;
 }
 
 export function nearbyStations(sample: Sample, now = Date.now()) {

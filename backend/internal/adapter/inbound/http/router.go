@@ -13,6 +13,7 @@ import (
 )
 
 func New(r inbound.TransitUseCase, cfg config.Config) *fiber.App {
+	mrtFares := newMRTFareClient()
 	app := fiber.New(fiber.Config{BodyLimit: 16 * 1024, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, ErrorHandler: func(c fiber.Ctx, err error) error {
 		code := 500
 		if e, ok := err.(*fiber.Error); ok {
@@ -63,6 +64,13 @@ func New(r inbound.TransitUseCase, cfg config.Config) *fiber.App {
 	}
 	app.Get("/api/v1/stations", stations)
 	app.Get("/api/v1/stations/search", stations)
+	app.Get("/api/v1/fares/mrt", func(c fiber.Ctx) error {
+		fare, err := mrtFares.Fare(c.Context(), c.Query("from"), c.Query("to"))
+		if err != nil {
+			return c.Status(502).JSON(fiber.Map{"error": "official fare unavailable"})
+		}
+		return c.JSON(fiber.Map{"fare": fare, "currency": "THB", "passengerType": "adult", "source": "BEM official fare calculator"})
+	})
 	app.Post("/api/v1/location/resolve", func(c fiber.Ctx) error {
 		var req service.ResolveRequest
 		if !strings.HasPrefix(c.Get("Content-Type"), "application/json") {

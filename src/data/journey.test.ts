@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { journeyEstimate, journeyMapStops, journeyRoute, nearbyStations } from "./journey";
+import { journeyEstimate, journeyFareSegments, journeyMapStops, journeyRoute, nearbyStations } from "./journey";
 import { getStation } from "./network";
 const station = (stationId: string, lineId = "bts-sukhumvit") => ({
   stationId,
@@ -30,28 +30,17 @@ describe("journey planning", () => {
     const estimate = journeyEstimate(station("E4"), station("BL01", "mrt-blue"))!;
     expect(estimate.railStops).toBeGreaterThan(1);
     expect(estimate.timeMax).toBeGreaterThan(estimate.timeMin);
-    expect(estimate.fareMax).toBeGreaterThanOrEqual(estimate.fareMin);
-    expect(estimate.fareBreakdown.map((fare) => fare.lineId)).toEqual(["mrt-blue"]);
     expect(estimate.transfers).toEqual(expect.arrayContaining([
       expect.objectContaining({ at: "อโศก", walkTo: "สุขุมวิท", toLine: "MRT สีน้ำเงิน" }),
     ]));
   });
-  it("adds the fare of every line to the displayed total", () => {
-    const estimate = journeyEstimate(
+  it("groups paid-area fare segments without charging MRT entry twice", () => {
+    const segments = journeyFareSegments(
       station("PP10", "mrt-purple"),
       station("E5"),
-    )!;
-    expect(estimate.fareBreakdown.map((fare) => fare.lineId)).toEqual([
-      "mrt-purple",
-      "mrt-blue",
-      "bts-sukhumvit",
-    ]);
-    expect(estimate.fareMin).toBe(
-      estimate.fareBreakdown.reduce((total, fare) => total + fare.min, 0),
     );
-    expect(estimate.fareMax).toBe(
-      estimate.fareBreakdown.reduce((total, fare) => total + fare.max, 0),
-    );
+    expect(segments.map((segment) => segment.network)).toEqual(["mrt", "bts"]);
+    expect(segments[0]).toMatchObject({ from: { stationId: "PP10" }, to: { stationId: "BL22" } });
   });
   it("provides line-aware stops for the route map", () => {
     const stops = journeyMapStops(station("E4"), station("BL01", "mrt-blue"));

@@ -27,6 +27,7 @@ import { useNotifications } from "./hooks/useNotifications";
 import { usePWA } from "./hooks/usePWA";
 import { useWakeLock } from "./hooks/useWakeLock";
 import { read, save } from "./services/storage";
+import { resolveExactFare, type FareQuote } from "./services/fares";
 import type { Destination } from "./types";
 import "./journey.css";
 
@@ -69,6 +70,9 @@ export default function App() {
   const [freshAfter, setFreshAfter] = useState(Date.now());
   const [now, setNow] = useState(Date.now());
   const [keepAwake, setKeepAwake] = useState(true);
+  const [fare, setFare] = useState<FareQuote | null>(null);
+  const [fareIssue, setFareIssue] = useState("");
+  const [fareBusy, setFareBusy] = useState(false);
   const [recent, setRecent] = useState<Destination[]>(() => {
     const value = read("recent");
     return Array.isArray(value) ? value.filter(isDestination).slice(0, 3) : [];
@@ -112,6 +116,28 @@ export default function App() {
 
   const route = journeyRoute(origin, destination);
   const estimate = journeyEstimate(origin, destination);
+  useEffect(() => {
+    setFare(null);
+    setFareIssue("");
+    if (!origin || !destination || route.length < 2) return;
+    const controller = new AbortController();
+    let live = true;
+    setFareBusy(true);
+    resolveExactFare(origin, destination, controller.signal)
+      .then((quote) => {
+        if (live) setFare(quote);
+      })
+      .catch((error) => {
+        if (live && error.name !== "AbortError") setFareIssue(error.message);
+      })
+      .finally(() => {
+        if (live) setFareBusy(false);
+      });
+    return () => {
+      live = false;
+      controller.abort();
+    };
+  }, [origin?.lineId, origin?.stationId, destination?.lineId, destination?.stationId]);
   const result =
     trip && live.result && live.result.timestamp >= trip.startedAt
       ? live.result
@@ -306,15 +332,16 @@ export default function App() {
                   <RouteMap origin={origin!} destination={destination!} />
                   <div className="route-metrics">
                     <span><Clock3 size={18} /><strong>{estimate?.timeMin}–{estimate?.timeMax}</strong><small>นาที</small></span>
-                    <span><Banknote size={19} /><strong>฿{estimate?.fareMin}–{estimate?.fareMax}</strong><small>รวมทุกสาย</small></span>
+                    <span><Banknote size={19} /><strong>{fare ? `฿${fare.total}` : fareBusy ? "…" : "—"}</strong><small>รวมราคาจริง</small></span>
                     <span><Repeat2 size={18} /><strong>{estimate?.transfers.length ?? 0}</strong><small>ครั้ง</small></span>
                   </div>
                   <p className="route-direction">{estimate?.railStops} สถานี · เริ่มไปทาง {route[1].nameTh}</p>
                   <div className="fare-breakdown" aria-label="รายละเอียดค่าโดยสารแต่ละสาย">
-                    {estimate?.fareBreakdown.map((fare) => (
-                      <span key={fare.lineId}>{fare.lineName} ฿{fare.min}–{fare.max}</span>
+                    {fare?.items.map((item, index) => (
+                      <span key={`${item.label}-${index}`}>{item.label} ฿{item.fare}</span>
                     ))}
                   </div>
+                  {fareIssue && <p className="fare-issue">{fareIssue} — ไม่แสดงราคาประมาณแทน</p>}
                   {!!estimate?.transfers.length && (
                     <div className="transfer-list">
                       <strong>จุดต่อสาย</strong>
@@ -325,7 +352,7 @@ export default function App() {
                       ))}
                     </div>
                   )}
-                  <p className="estimate-note">เวลาและค่าโดยสารเป็นค่าประมาณ อาจต่างตามเวลารอ ขบวนรถ และเงื่อนไขบัตร</p>
+                  <p className="estimate-note">เวลาเป็นค่าประมาณ · ค่าโดยสารบุคคลทั่วไปเที่ยวเดียวจากตาราง BTS และเครื่องคำนวณ BEM ทางการ</p>
                 </div>
               )}
               <button

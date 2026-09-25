@@ -290,6 +290,7 @@
 }
 .fare-breakdown { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 9px; }
 .fare-breakdown span { padding: 4px 7px; border-radius: 10px; background: #e9f3ff; color: #52708f; font-size: 9px; }
+.fare-issue { margin: 8px 0 0; text-align: center; color: #b25353; font-size: 10px; line-height: 1.5; }
 .transfer-list {
   margin-top: 12px;
   padding-top: 11px;
