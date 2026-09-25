@@ -181,19 +181,51 @@
   margin: 13px 0 0;
   color: #74869e;
 }
-.route-summary {
+.route-plan {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #dceafd;
+  border-radius: 15px;
+  background: #f7fbff;
+}
+.route-metrics {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  padding: 15px 4px 0;
+  gap: 6px;
+}
+.route-metrics span {
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
   font-size: 12px;
   color: #6b7d93;
 }
-.route-summary strong {
+.route-metrics svg { color: #2474df; }
+.route-metrics strong {
   color: #2474df;
-  font-size: 20px;
+  font-size: 17px;
   font-family: Outfit, sans-serif;
 }
+.route-metrics small { font-size: 10px; }
+.route-direction,
+.estimate-note {
+  text-align: center;
+  font-size: 11px;
+  color: #71839a;
+  margin: 11px 0 0;
+}
+.transfer-list {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid #dfebf8;
+  font-size: 12px;
+  color: #536b88;
+}
+.transfer-list > strong { color: #24496f; }
+.transfer-list p { margin: 7px 0 0; line-height: 1.55; }
+.transfer-list b { color: #176ccf; }
+.estimate-note { line-height: 1.55; }
 .coverage-caption {
   font-size: 11px;
   text-align: center;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { journeyRoute, nearbyStations } from "./journey";
+import { journeyEstimate, journeyRoute, nearbyStations } from "./journey";
 import { getStation } from "./network";
 const station = (stationId: string, lineId = "bts-sukhumvit") => ({
   stationId,
@@ -25,6 +25,15 @@ describe("journey planning", () => {
     expect(journeyRoute(station("CEN"), station("S2", "bts-silom")).map((s) => s.id)).toEqual(["CEN", "CEN", "S1", "S2"]);
     expect(journeyRoute(station("E4"), station("E4"))).toHaveLength(1);
     expect(journeyRoute(null, station("E4"))).toEqual([]);
+  });
+  it("estimates time, fare, and transfer instructions", () => {
+    const estimate = journeyEstimate(station("E4"), station("BL01", "mrt-blue"))!;
+    expect(estimate.railStops).toBeGreaterThan(1);
+    expect(estimate.timeMax).toBeGreaterThan(estimate.timeMin);
+    expect(estimate.fareMax).toBeGreaterThanOrEqual(estimate.fareMin);
+    expect(estimate.transfers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ at: "อโศก", walkTo: "สุขุมวิท", toLine: "MRT สีน้ำเงิน" }),
+    ]));
   });
   it("suggests nearby stations for confirmation only with a fresh accurate fix", () => {
     const s = getStation(station("E4"))!;

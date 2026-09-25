@@ -2,21 +2,24 @@ import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Bell,
+  Banknote,
   Check,
   ChevronRight,
   Crosshair,
   Download,
   Info,
   LoaderCircle,
+  Clock3,
   MapPin,
   Square,
+  Repeat2,
   TrainFront,
   X,
 } from "lucide-react";
 import { DestinationSearch } from "./components/DestinationSearch";
 import { Modal } from "./components/Modal";
 import { getLine, getStation, isDestination } from "./data/network";
-import { journeyRoute, nearbyStations } from "./data/journey";
+import { journeyEstimate, journeyRoute, nearbyStations } from "./data/journey";
 import { useGeolocation } from "./hooks/useGeolocation";
 import { useTripTracking } from "./hooks/useTripTracking";
 import { useNotifications } from "./hooks/useNotifications";
@@ -107,6 +110,7 @@ export default function App() {
   }, [scanning]);
 
   const route = journeyRoute(origin, destination);
+  const estimate = journeyEstimate(origin, destination);
   const result =
     trip && live.result && live.result.timestamp >= trip.startedAt
       ? live.result
@@ -297,11 +301,24 @@ export default function App() {
                 <ChevronRight size={20} />
               </button>
               {route.length > 1 && (
-                <div className="route-summary">
-                  <span>
-                    <strong>{route.length - 1}</strong> สถานี
-                  </span>
-                  <span>ไปทาง {route[1].nameTh}</span>
+                <div className="route-plan">
+                  <div className="route-metrics">
+                    <span><Clock3 size={18} /><strong>{estimate?.timeMin}–{estimate?.timeMax}</strong><small>นาที</small></span>
+                    <span><Banknote size={19} /><strong>฿{estimate?.fareMin}–{estimate?.fareMax}</strong><small>โดยประมาณ</small></span>
+                    <span><Repeat2 size={18} /><strong>{estimate?.transfers.length ?? 0}</strong><small>ครั้ง</small></span>
+                  </div>
+                  <p className="route-direction">{estimate?.railStops} สถานี · เริ่มไปทาง {route[1].nameTh}</p>
+                  {!!estimate?.transfers.length && (
+                    <div className="transfer-list">
+                      <strong>จุดต่อสาย</strong>
+                      {estimate.transfers.map((transfer) => (
+                        <p key={`${transfer.fromLine}-${transfer.toLine}`}>
+                          ลงที่ <b>{transfer.at}</b> → {transfer.walkTo !== transfer.at ? `เดินไป ${transfer.walkTo} · ` : ""}ขึ้น {transfer.toLine}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  <p className="estimate-note">เวลาและค่าโดยสารเป็นค่าประมาณ อาจต่างตามเวลารอ ขบวนรถ และเงื่อนไขบัตร</p>
                 </div>
               )}
               <button

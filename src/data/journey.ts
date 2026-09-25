@@ -1,4 +1,4 @@
-import { isDestination, lines } from "./network";
+import { getLine, getStation, isDestination, lines } from "./network";
 import type { Destination, Sample, Station } from "../types";
 
 const transfers: [Destination, Destination][] = [
@@ -11,38 +11,38 @@ const transfers: [Destination, Destination][] = [
 ];
 const key = (d: Destination) => `${d.lineId}:${d.stationId}`;
 
-// Route over the complete network, including the supported BTS/MRT interchanges.
-export function journeyRoute(
+function journeyDestinations(
   origin: Destination | null,
   destination: Destination | null,
-): Station[] {
-  if (
-    !origin ||
-    !destination ||
-    !isDestination(origin) ||
-    !isDestination(destination)
-  )
+): Destination[] {
+  if (!origin || !destination || !isDestination(origin) || !isDestination(destination))
     return [];
-  const stations = new Map<string, Station>();
+  const destinations = new Map<string, Destination>();
   const neighbours = new Map<string, string[]>();
   const connect = (a: string, b: string) => {
     neighbours.set(a, [...(neighbours.get(a) ?? []), b]);
     neighbours.set(b, [...(neighbours.get(b) ?? []), a]);
   };
   for (const line of lines) {
-    for (const station of line.stations)
-      stations.set(key({ lineId: line.id, stationId: station.id }), station);
+    for (const station of line.stations) {
+      const destination = { lineId: line.id, stationId: station.id };
+      destinations.set(key(destination), destination);
+    }
     for (const edge of line.edges ?? [])
-      connect(key({ lineId: line.id, stationId: edge.from }), key({ lineId: line.id, stationId: edge.to }));
+      connect(
+        key({ lineId: line.id, stationId: edge.from }),
+        key({ lineId: line.id, stationId: edge.to }),
+      );
   }
   for (const [a, b] of transfers) connect(key(a), key(b));
-  const start = key(origin), finish = key(destination);
+  const start = key(origin);
+  const finish = key(destination);
   const queue: string[][] = [[start]];
   const seen = new Set([start]);
   for (let i = 0; i < queue.length; i++) {
     const path = queue[i];
     const last = path[path.length - 1];
-    if (last === finish) return path.map((id) => stations.get(id)!);
+    if (last === finish) return path.map((id) => destinations.get(id)!);
     for (const next of neighbours.get(last) ?? []) {
       if (!seen.has(next)) {
         seen.add(next);
@@ -51,6 +51,49 @@ export function journeyRoute(
     }
   }
   return [];
+}
+
+// Route over the complete network, including the supported BTS/MRT interchanges.
+export function journeyRoute(
+  origin: Destination | null,
+  destination: Destination | null,
+): Station[] {
+  return journeyDestinations(origin, destination).map((d) => getStation(d)!);
+}
+
+export function journeyEstimate(origin: Destination | null, destination: Destination | null) {
+  const route = journeyDestinations(origin, destination);
+  if (route.length < 2) return null;
+  const transfers = route.slice(1).flatMap((stop, index) => {
+    const from = route[index];
+    if (from.lineId === stop.lineId) return [];
+    return [{
+      at: getStation(from)!.nameTh,
+      walkTo: getStation(stop)!.nameTh,
+      fromLine: getLine(from.lineId)!.name,
+      toLine: getLine(stop.lineId)!.name,
+    }];
+  });
+  const railStops = route.slice(1).filter((stop, index) => stop.lineId === route[index].lineId).length;
+  const systems = new Map<string, number>();
+  route.slice(1).forEach((stop, index) => {
+    if (stop.lineId !== route[index].lineId) return;
+    const system = stop.lineId.startsWith("bts-") ? "bts" : "mrt";
+    systems.set(system, (systems.get(system) ?? 0) + 1);
+  });
+  let fareMin = 0, fareMax = 0;
+  for (const [system, stops] of systems) {
+    fareMin += system === "bts" ? 17 : 16;
+    fareMax += Math.min(system === "bts" ? 65 : 47, (system === "bts" ? 17 : 16) + stops * (system === "bts" ? 3 : 2));
+  }
+  return {
+    railStops,
+    timeMin: railStops * 2 + transfers.length * 5,
+    timeMax: railStops * 3 + transfers.length * 10 + 5,
+    fareMin,
+    fareMax,
+    transfers,
+  };
 }
 
 export function nearbyStations(sample: Sample, now = Date.now()) {
