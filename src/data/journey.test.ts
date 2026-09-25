@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { journeyEstimate, journeyRoute, nearbyStations } from "./journey";
+import { journeyEstimate, journeyMapStops, journeyRoute, nearbyStations } from "./journey";
 import { getStation } from "./network";
 const station = (stationId: string, lineId = "bts-sukhumvit") => ({
   stationId,
@@ -34,6 +34,12 @@ describe("journey planning", () => {
     expect(estimate.transfers).toEqual(expect.arrayContaining([
       expect.objectContaining({ at: "อโศก", walkTo: "สุขุมวิท", toLine: "MRT สีน้ำเงิน" }),
     ]));
+  });
+  it("provides line-aware stops for the route map", () => {
+    const stops = journeyMapStops(station("E4"), station("BL01", "mrt-blue"));
+    expect(stops[0].lineId).toBe("bts-sukhumvit");
+    expect(stops.at(-1)?.station.id).toBe("BL01");
+    expect(stops.some((stop) => stop.isTransfer && stop.station.id === "BL22")).toBe(true);
   });
   it("suggests nearby stations for confirmation only with a fresh accurate fix", () => {
     const s = getStation(station("E4"))!;

@@ -188,6 +188,36 @@
   border-radius: 15px;
   background: #f7fbff;
 }
+.route-map { margin-bottom: 14px; }
+.route-map-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.route-map-heading strong { color: #24496f; font-size: 13px; }
+.route-map-heading span { color: #8191a5; font-size: 10px; }
+.route-map svg { display: block; width: 100%; height: auto; border-radius: 13px; }
+.route-map-label {
+  fill: #274868;
+  font-family: "Noto Sans Thai", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #eef6ff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.route-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 11px;
+  margin-top: 8px;
+  color: #6d7f95;
+  font-size: 9px;
+}
+.route-map-legend span { display: flex; align-items: center; gap: 4px; }
+.route-map-legend i { width: 13px; height: 4px; border-radius: 4px; }
 .route-metrics {
   display: flex;
   justify-content: space-between;

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { DestinationSearch } from "./components/DestinationSearch";
 import { Modal } from "./components/Modal";
+import { RouteMap } from "./components/RouteMap";
 import { getLine, getStation, isDestination } from "./data/network";
 import { journeyEstimate, journeyRoute, nearbyStations } from "./data/journey";
 import { useGeolocation } from "./hooks/useGeolocation";
@@ -302,6 +303,7 @@ export default function App() {
               </button>
               {route.length > 1 && (
                 <div className="route-plan">
+                  <RouteMap origin={origin!} destination={destination!} />
                   <div className="route-metrics">
                     <span><Clock3 size={18} /><strong>{estimate?.timeMin}–{estimate?.timeMax}</strong><small>นาที</small></span>
                     <span><Banknote size={19} /><strong>฿{estimate?.fareMin}–{estimate?.fareMax}</strong><small>โดยประมาณ</small></span>

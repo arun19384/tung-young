@@ -53,6 +53,18 @@ function journeyDestinations(
   return [];
 }
 
+export function journeyMapStops(
+  origin: Destination | null,
+  destination: Destination | null,
+) {
+  return journeyDestinations(origin, destination).map((place, index, route) => ({
+    ...place,
+    station: getStation(place)!,
+    line: getLine(place.lineId)!,
+    isTransfer: index > 0 && route[index - 1].lineId !== place.lineId,
+  }));
+}
+
 // Route over the complete network, including the supported BTS/MRT interchanges.
 export function journeyRoute(
   origin: Destination | null,
