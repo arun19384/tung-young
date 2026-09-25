@@ -27,7 +27,7 @@ import { useNotifications } from "./hooks/useNotifications";
 import { usePWA } from "./hooks/usePWA";
 import { useWakeLock } from "./hooks/useWakeLock";
 import { read, save } from "./services/storage";
-import { resolveExactFare, type FareQuote } from "./services/fares";
+import { resolveCheapestJourney, type FareQuote } from "./services/fares";
 import type { Destination } from "./types";
 import "./journey.css";
 
@@ -35,12 +35,14 @@ interface Trip {
   origin: Destination;
   destination: Destination;
   startedAt: number;
+  route?: Destination[];
 }
 function savedTrip(): Trip | null {
   const value = read("active-trip") as Trip | null;
   return value &&
     isDestination(value.origin) &&
     isDestination(value.destination) &&
+    (!value.route || (Array.isArray(value.route) && value.route.length > 1 && value.route.every(isDestination))) &&
     journeyRoute(value.origin, value.destination).length > 1 &&
     Number.isFinite(value.startedAt) &&
     Date.now() - value.startedAt >= 0 &&
@@ -73,6 +75,9 @@ export default function App() {
   const [fare, setFare] = useState<FareQuote | null>(null);
   const [fareIssue, setFareIssue] = useState("");
   const [fareBusy, setFareBusy] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<Destination[]>(
+    () => trip?.route ?? [],
+  );
   const [recent, setRecent] = useState<Destination[]>(() => {
     const value = read("recent");
     return Array.isArray(value) ? value.filter(isDestination).slice(0, 3) : [];
@@ -84,6 +89,7 @@ export default function App() {
     trip?.origin ?? null,
     trip?.destination ?? null,
     !!trip && visible && pwa.online,
+    trip?.route,
   );
   const held = useWakeLock(!!trip && visible && keepAwake);
   useEffect(() => {
@@ -114,18 +120,27 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [scanning]);
 
-  const route = journeyRoute(origin, destination);
-  const estimate = journeyEstimate(origin, destination);
+  const route = selectedRoute.map((stop) => getStation(stop)!);
+  const estimate = journeyEstimate(origin, destination, selectedRoute);
   useEffect(() => {
+    if (trip?.route) {
+      setSelectedRoute(trip.route);
+      return;
+    }
+    setSelectedRoute([]);
     setFare(null);
     setFareIssue("");
-    if (!origin || !destination || route.length < 2) return;
+    setFareBusy(false);
+    if (!origin || !destination) return;
     const controller = new AbortController();
     let live = true;
     setFareBusy(true);
-    resolveExactFare(origin, destination, controller.signal)
-      .then((quote) => {
-        if (live) setFare(quote);
+    resolveCheapestJourney(origin, destination, controller.signal)
+      .then((plan) => {
+        if (live) {
+          setFare(plan.fare);
+          setSelectedRoute(plan.route);
+        }
       })
       .catch((error) => {
         if (live && error.name !== "AbortError") setFareIssue(error.message);
@@ -137,7 +152,12 @@ export default function App() {
       live = false;
       controller.abort();
     };
-  }, [origin?.lineId, origin?.stationId, destination?.lineId, destination?.stationId]);
+  }, [
+    origin?.lineId,
+    origin?.stationId,
+    destination?.lineId,
+    destination?.stationId,
+  ]);
   const result =
     trip && live.result && live.result.timestamp >= trip.startedAt
       ? live.result
@@ -165,7 +185,12 @@ export default function App() {
       : [];
   const start = () => {
     if (!origin || !destination || route.length < 2) return;
-    const next = { origin, destination, startedAt: Date.now() };
+    const next = {
+      origin,
+      destination,
+      route: selectedRoute,
+      startedAt: Date.now(),
+    };
     setFreshAfter(next.startedAt);
     setNow(next.startedAt);
     setScanning(false);
@@ -188,7 +213,11 @@ export default function App() {
     setOriginSource(source);
     setScanning(false);
     setScanMessage("");
-    if (destination && destination.lineId === d.lineId && destination.stationId === d.stationId)
+    if (
+      destination &&
+      destination.lineId === d.lineId &&
+      destination.stationId === d.stationId
+    )
       setDestination(null);
   };
   const stop = () => {
@@ -319,7 +348,9 @@ export default function App() {
               >
                 <TrainFront size={23} />
                 <span>
-                  <small>{to ? getLine(destination!.lineId)?.name : "ปลายทาง"}</small>
+                  <small>
+                    {to ? getLine(destination!.lineId)?.name : "ปลายทาง"}
+                  </small>
                   <strong>
                     {to?.nameTh ??
                       (origin ? "เลือกสถานีปลายทาง" : "เลือกสถานีที่ขึ้นก่อน")}
@@ -327,32 +358,82 @@ export default function App() {
                 </span>
                 <ChevronRight size={20} />
               </button>
+              {fareBusy && (
+                <p role="status">กำลังเปรียบเทียบค่าโดยสารทุกเส้นทาง…</p>
+              )}
+              {fareIssue && (
+                <p className="fare-issue" role="alert">
+                  {fareIssue} — ยังยืนยันเส้นทางที่ถูกที่สุดไม่ได้
+                  กรุณาเลือกสถานีอีกครั้ง
+                </p>
+              )}
               {route.length > 1 && (
                 <div className="route-plan">
-                  <RouteMap origin={origin!} destination={destination!} />
+                  <p className="route-direction">
+                    ค่าโดยสารถูกที่สุด · ราคาเท่ากันเลือกต่อสายน้อยกว่า
+                  </p>
+                  <RouteMap
+                    origin={origin!}
+                    destination={destination!}
+                    route={selectedRoute}
+                  />
                   <div className="route-metrics">
-                    <span><Clock3 size={18} /><strong>{estimate?.timeMin}–{estimate?.timeMax}</strong><small>นาที</small></span>
-                    <span><Banknote size={19} /><strong>{fare ? `฿${fare.total}` : fareBusy ? "…" : "—"}</strong><small>รวมราคาจริง</small></span>
-                    <span><Repeat2 size={18} /><strong>{estimate?.transfers.length ?? 0}</strong><small>ครั้ง</small></span>
+                    <span>
+                      <Clock3 size={18} />
+                      <strong>
+                        {estimate?.timeMin}–{estimate?.timeMax}
+                      </strong>
+                      <small>นาที</small>
+                    </span>
+                    <span>
+                      <Banknote size={19} />
+                      <strong>
+                        {fare ? `฿${fare.total}` : fareBusy ? "…" : "—"}
+                      </strong>
+                      <small>รวมราคาจริง</small>
+                    </span>
+                    <span>
+                      <Repeat2 size={18} />
+                      <strong>{estimate?.transfers.length ?? 0}</strong>
+                      <small>ครั้ง</small>
+                    </span>
                   </div>
-                  <p className="route-direction">{estimate?.railStops} สถานี · เริ่มไปทาง {route[1].nameTh}</p>
-                  <div className="fare-breakdown" aria-label="รายละเอียดค่าโดยสารแต่ละสาย">
+                  <p className="route-direction">
+                    {estimate?.railStops} สถานี · เริ่มไปทาง {route[1].nameTh}
+                  </p>
+                  <div
+                    className="fare-breakdown"
+                    aria-label="รายละเอียดค่าโดยสารแต่ละสาย"
+                  >
                     {fare?.items.map((item, index) => (
-                      <span key={`${item.label}-${index}`}>{item.label} ฿{item.fare}</span>
+                      <span key={`${item.label}-${index}`}>
+                        {item.label} ฿{item.fare}
+                      </span>
                     ))}
                   </div>
-                  {fareIssue && <p className="fare-issue">{fareIssue} — ไม่แสดงราคาประมาณแทน</p>}
+                  {fareIssue && (
+                    <p className="fare-issue">
+                      {fareIssue} — ไม่แสดงราคาประมาณแทน
+                    </p>
+                  )}
                   {!!estimate?.transfers.length && (
                     <div className="transfer-list">
                       <strong>จุดต่อสาย</strong>
                       {estimate.transfers.map((transfer) => (
                         <p key={`${transfer.fromLine}-${transfer.toLine}`}>
-                          ลงที่ <b>{transfer.at}</b> → {transfer.walkTo !== transfer.at ? `เดินไป ${transfer.walkTo} · ` : ""}ขึ้น {transfer.toLine}
+                          ลงที่ <b>{transfer.at}</b> →{" "}
+                          {transfer.walkTo !== transfer.at
+                            ? `เดินไป ${transfer.walkTo} · `
+                            : ""}
+                          ขึ้น {transfer.toLine}
                         </p>
                       ))}
                     </div>
                   )}
-                  <p className="estimate-note">เวลาเป็นค่าประมาณ · ค่าโดยสารบุคคลทั่วไปเที่ยวเดียวจากตาราง BTS และเครื่องคำนวณ BEM ทางการ</p>
+                  <p className="estimate-note">
+                    เวลาเป็นค่าประมาณ · ค่าโดยสารบุคคลทั่วไปเที่ยวเดียวจากตาราง
+                    BTS และเครื่องคำนวณ BEM ทางการ
+                  </p>
                 </div>
               )}
               <button
@@ -454,6 +535,20 @@ export default function App() {
               </div>
             )}
             <section className="journey-options">
+              <RouteMap
+                origin={origin!}
+                destination={destination!}
+                route={selectedRoute}
+              />
+              {estimate?.transfers.map((transfer, index) => (
+                <p key={index}>
+                  ลงที่ <b>{transfer.at}</b> →{" "}
+                  {transfer.walkTo !== transfer.at
+                    ? `เดินไป ${transfer.walkTo} · `
+                    : ""}
+                  ขึ้น {transfer.toLine}
+                </p>
+              ))}
               <div className="notification-row">
                 <Bell size={22} />
                 <div>
@@ -518,7 +613,9 @@ export default function App() {
           purpose={search}
           current={search === "origin" ? origin : destination}
           recent={search === "origin" ? [] : recent}
-          excluded={search === "destination" ? origin ?? undefined : undefined}
+          excluded={
+            search === "destination" ? (origin ?? undefined) : undefined
+          }
           onClose={() => setSearch(null)}
           onSelect={(d) => {
             if (search === "origin") chooseOrigin(d, "เลือกเอง");

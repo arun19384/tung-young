@@ -1,11 +1,36 @@
 package service
 
 import (
+	"fmt"
 	"github.com/arun19384/tung-young/backend/internal/adapter/outbound/transit"
 	"github.com/arun19384/tung-young/backend/internal/domain"
 	"testing"
 	"time"
 )
+
+func TestTrackingPreservesSelectedRouteInsteadOfShortestPath(t *testing.T) {
+	r, _ := fixture(t)
+	var blue domain.Line
+	for _, line := range r.Repo.Lines() {
+		if line.ID == "mrt-blue" {
+			blue = line
+		}
+	}
+	selected := []RouteStop{}
+	for i := 13; i <= 32; i++ {
+		selected = append(selected, RouteStop{"mrt-blue", fmt.Sprintf("BL%02d", i)})
+	}
+	for _, id := range []string{"BL01", "BL33", "BL34"} {
+		selected = append(selected, RouteStop{"mrt-blue", id})
+	}
+	a, _ := blue.Station("BL13")
+	b, _ := blue.Station("BL14")
+	now := time.Now()
+	got, err := r.Resolve(ResolveRequest{LineID: "mrt-blue", DestinationLineID: "mrt-blue", DestinationStationID: "BL34", Route: selected, Samples: samplesAt(a, b, []float64{.35, .4, .45}, now)}, now)
+	if err != nil || got.NextStation == nil || got.NextStation.ID != "BL14" || got.RemainingStations != 22 || got.WrongDirection {
+		t.Fatalf("selected route lost: %+v %v", got, err)
+	}
+}
 
 func fixture(t *testing.T) (Resolver, domain.Line) {
 	t.Helper()

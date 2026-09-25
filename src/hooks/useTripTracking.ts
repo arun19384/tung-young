@@ -6,6 +6,7 @@ export function useTripTracking(
   origin: Destination | null,
   destination: Destination | null,
   enabled: boolean,
+  route?: Destination[],
 ) {
   const history = useRef<Sample[]>([]);
   const [resolved, setResolved] = useState<{
@@ -41,7 +42,13 @@ export function useTripTracking(
     let live = true;
     const timeout = setTimeout(() => controller.abort(), 12000);
     setBusy(true);
-    resolveLocation(history.current, destination, controller.signal, origin?.lineId === destination?.lineId)
+    resolveLocation(
+      history.current,
+      destination,
+      controller.signal,
+      route ? false : origin?.lineId === destination?.lineId,
+      route,
+    )
       .then((next) => {
         if (!live) return;
         if (next.status === "tracking" || next.status === "arrived") {

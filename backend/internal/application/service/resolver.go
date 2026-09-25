@@ -9,10 +9,15 @@ import (
 )
 
 type ResolveRequest struct {
+	Route                []RouteStop     `json:"route"`
 	LineID               string          `json:"lineId"`
 	DestinationStationID string          `json:"destinationStationId"`
 	Samples              []domain.Sample `json:"samples"`
 	DestinationLineID    string          `json:"destinationLineId"`
+}
+type RouteStop struct {
+	LineID    string `json:"lineId"`
+	StationID string `json:"stationId"`
 }
 type Resolution struct {
 	Status            string           `json:"status"`
@@ -41,6 +46,28 @@ type Resolver struct {
 
 func (r Resolver) Lines() []domain.Line { return r.Repo.Lines() }
 func (r Resolver) Resolve(req ResolveRequest, now time.Time) (Resolution, error) {
+	if len(req.Route) > 160 {
+		return Resolution{}, errors.New("route too long")
+	}
+	if len(req.Route) > 0 {
+		last := req.Route[len(req.Route)-1]
+		if last.LineID != req.DestinationLineID || last.StationID != req.DestinationStationID {
+			return Resolution{}, errors.New("route destination mismatch")
+		}
+		seen := map[RouteStop]bool{}
+		for i, stop := range req.Route {
+			if seen[stop] {
+				return Resolution{}, errors.New("route repeats station")
+			}
+			seen[stop] = true
+			if i > 0 {
+				prev := req.Route[i-1]
+				if len(networkPath(r.Repo.Lines(), prev.LineID, prev.StationID, stop.LineID, stop.StationID)) != 2 {
+					return Resolution{}, errors.New("invalid route connection")
+				}
+			}
+		}
+	}
 	if len(req.Samples) == 0 || len(req.Samples) > 12 {
 		return Resolution{}, errors.New("samples must contain 1–12 positions")
 	}
@@ -175,6 +202,32 @@ func (r Resolver) Resolve(req ResolveRequest, now time.Time) (Resolution, error)
 			route = append([]domain.Station{from}, b...)
 		}
 	}
+	if len(req.Route) > 0 {
+		index := -1
+		for i := 0; i+1 < len(req.Route); i++ {
+			a, b := req.Route[i], req.Route[i+1]
+			if a.LineID == line.ID && b.LineID == line.ID && ((a.StationID == edge.From && b.StationID == edge.To) || (a.StationID == edge.To && b.StationID == edge.From)) {
+				index = i
+				reverse = a.StationID == edge.To
+				break
+			}
+		}
+		if index < 0 {
+			empty.Status = "off_route"
+			empty.Message = "ตำแหน่งอยู่นอกเส้นทางที่เลือก กรุณาตรวจสอบสายรถไฟ"
+			return empty, nil
+		}
+		route = nil
+		for _, stop := range req.Route[index:] {
+			for _, l := range r.Repo.Lines() {
+				if l.ID == stop.LineID {
+					s, _ := l.Station(stop.StationID)
+					route = append(route, s)
+					break
+				}
+			}
+		}
+	}
 	observed := matches[len(matches)-1].Progress - matches[max(0, len(matches)-3)].Progress
 	if count < 3 {
 		observed = 0
@@ -200,6 +253,14 @@ func (r Resolver) Resolve(req ResolveRequest, now time.Time) (Resolution, error)
 	result := Resolution{Status: "tracking", Line: &summary, PreviousStation: &from, NextStation: &to, Route: route, Progress: math.Max(0, math.Min(1, progress)), RemainingStations: len(route) - 1, Confidence: math.Max(0, 1-latest.Accuracy/r.MaxAccuracy*.4-best/r.MaxDistance*.3), Timestamp: latest.Timestamp, Distance: best, Direction: to.NameTh}
 	if hasDest {
 		result.Destination = &dest
+		if len(req.Route) > 0 {
+			result.RemainingStations = 0
+			for i := len(req.Route) - len(route) + 1; i < len(req.Route); i++ {
+				if req.Route[i-1].LineID == req.Route[i].LineID {
+					result.RemainingStations++
+				}
+			}
+		}
 		result.WrongDirection = math.Abs(observed) > .04 && ((observed > 0 && reverse) || (observed < 0 && !reverse))
 		result.ETA = int(math.Ceil((float64(result.RemainingStations) - result.Progress) * 2))
 		if arrived {

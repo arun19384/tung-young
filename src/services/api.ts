@@ -4,12 +4,14 @@ export async function resolveLocation(
   destination: Destination | null,
   signal: AbortSignal,
   sameLine = true,
+  route?: Destination[],
 ): Promise<Resolution> {
   const response = await fetch("/api/v1/location/resolve", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       samples,
+      route,
       lineId: sameLine ? destination?.lineId : undefined,
       destinationLineId: destination?.lineId,
       destinationStationId: destination?.stationId,
