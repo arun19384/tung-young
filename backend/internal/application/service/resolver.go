@@ -12,6 +12,7 @@ type ResolveRequest struct {
 	LineID               string          `json:"lineId"`
 	DestinationStationID string          `json:"destinationStationId"`
 	Samples              []domain.Sample `json:"samples"`
+	DestinationLineID    string          `json:"destinationLineId"`
 }
 type Resolution struct {
 	Status            string           `json:"status"`
@@ -83,7 +84,20 @@ func (r Resolver) Resolve(req ResolveRequest, now time.Time) (Resolution, error)
 		empty.Message = "ยังไม่อยู่ใกล้เส้นทางที่เลือก หรือ GPS คลาดเคลื่อน"
 		return empty, nil
 	}
-	dest, hasDest := line.Station(req.DestinationStationID)
+	destinationLine := line
+	if req.DestinationLineID != "" {
+		found := false
+		for _, candidate := range r.Repo.Lines() {
+			if candidate.ID == req.DestinationLineID {
+				destinationLine, found = candidate, true
+				break
+			}
+		}
+		if !found {
+			return Resolution{}, errors.New("unknown destination line")
+		}
+	}
+	dest, hasDest := destinationLine.Station(req.DestinationStationID)
 	if req.DestinationStationID != "" && !hasDest {
 		return Resolution{}, errors.New("destination is not on the selected line")
 	}
@@ -150,7 +164,7 @@ func (r Resolver) Resolve(req ResolveRequest, now time.Time) (Resolution, error)
 	route := []domain.Station{from, to}
 	reverse := false
 	if hasDest {
-		a, b := domain.Path(line, edge.From, dest.ID), domain.Path(line, edge.To, dest.ID)
+		a, b := networkPath(r.Repo.Lines(), line.ID, edge.From, destinationLine.ID, dest.ID), networkPath(r.Repo.Lines(), line.ID, edge.To, destinationLine.ID, dest.ID)
 		if len(a) == 0 || len(b) == 0 {
 			return Resolution{}, errors.New("no connected route")
 		}
@@ -202,3 +216,55 @@ func (r Resolver) Resolve(req ResolveRequest, now time.Time) (Resolution, error)
 	return result, nil
 }
 func sameEdge(a, b domain.Match) bool { return a.Edge.From == b.Edge.From && a.Edge.To == b.Edge.To }
+
+type networkStop struct{ lineID, stationID string }
+
+// networkPath joins line topology with the official paid-area/walking interchanges
+// supported by the app. Keeping line identity in the graph avoids collisions such as CEN.
+func networkPath(lines []domain.Line, fromLine, fromID, toLine, toID string) []domain.Station {
+	key := func(line, station string) string { return line + ":" + station }
+	stations := map[string]domain.Station{}
+	neighbours := map[string][]string{}
+	connect := func(a, b string) { neighbours[a] = append(neighbours[a], b); neighbours[b] = append(neighbours[b], a) }
+	for _, line := range lines {
+		for _, station := range line.Stations {
+			stations[key(line.ID, station.ID)] = station
+		}
+		for _, edge := range line.Edges {
+			connect(key(line.ID, edge.From), key(line.ID, edge.To))
+		}
+	}
+	transfers := [][2]networkStop{
+		{{"bts-sukhumvit", "CEN"}, {"bts-silom", "CEN"}},
+		{{"bts-sukhumvit", "E4"}, {"mrt-blue", "BL22"}},
+		{{"bts-sukhumvit", "N8"}, {"mrt-blue", "BL13"}},
+		{{"bts-silom", "S2"}, {"mrt-blue", "BL26"}},
+		{{"bts-silom", "S12"}, {"mrt-blue", "BL34"}},
+		{{"mrt-blue", "BL10"}, {"mrt-purple", "PP16"}},
+	}
+	for _, pair := range transfers {
+		connect(key(pair[0].lineID, pair[0].stationID), key(pair[1].lineID, pair[1].stationID))
+	}
+	start, finish := key(fromLine, fromID), key(toLine, toID)
+	queue, seen := [][]string{{start}}, map[string]bool{start: true}
+	for len(queue) > 0 {
+		path := queue[0]
+		queue = queue[1:]
+		last := path[len(path)-1]
+		if last == finish {
+			result := make([]domain.Station, 0, len(path))
+			for _, id := range path {
+				result = append(result, stations[id])
+			}
+			return result
+		}
+		for _, next := range neighbours[last] {
+			if !seen[next] {
+				seen[next] = true
+				candidate := append([]string{}, path...)
+				queue = append(queue, append(candidate, next))
+			}
+		}
+	}
+	return nil
+}

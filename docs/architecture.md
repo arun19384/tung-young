@@ -22,7 +22,7 @@ The outbound `TransitRepository` port currently reads embedded JSON. Replace tha
 
 ## Important limitations
 
-This is a working first release, not a field-validated railway positioning system. The bundled CC0 data covers four lines and 115 station memberships (Siam appears on both BTS lines). Yellow/Pink Lines and interchange routing are not implemented.
+This is a working first release, not a field-validated railway positioning system. The bundled CC0 data covers four lines and 115 station memberships (Siam appears on both BTS lines). Routing includes the principal interchanges among these four lines; Yellow/Pink Lines are not implemented.
 
 Geometry currently consists of chords between station coordinates, not surveyed rail centerlines. The projection algorithm accepts multi-point geometry for future better data. Curves, parallel lines, station exits and underground GPS can produce ambiguous or missing fixes. Proximity to a station cannot prove that someone is aboard a train. Users must choose the line they are actually riding. ETA uses approximately two minutes per remaining station, not an operator timetable or live train feed. Blue Line graph paths do not model platform-level transfer/service patterns at Tha Phra.
 

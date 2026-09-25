@@ -20,10 +20,9 @@ describe("journey planning", () => {
       ).map((s) => s.id),
     ).toEqual(["BL32", "BL01", "BL33"]);
   });
-  it("does not invent a cross-line route or a stop at the origin", () => {
-    expect(journeyRoute(station("E4"), station("BL01", "mrt-blue"))).toEqual(
-      [],
-    );
+  it("routes across BTS and MRT interchanges", () => {
+    expect(journeyRoute(station("E4"), station("BL01", "mrt-blue")).map((s) => s.id)).toContain("BL22");
+    expect(journeyRoute(station("CEN"), station("S2", "bts-silom")).map((s) => s.id)).toEqual(["CEN", "CEN", "S1", "S2"]);
     expect(journeyRoute(station("E4"), station("E4"))).toHaveLength(1);
     expect(journeyRoute(null, station("E4"))).toEqual([]);
   });

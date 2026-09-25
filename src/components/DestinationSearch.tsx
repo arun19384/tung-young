@@ -10,7 +10,7 @@ export function DestinationSearch({
   onClose,
   purpose = "destination",
   fixedLineId,
-  excludedStationId,
+  excluded,
 }: {
   current: Destination | null;
   recent: Destination[];
@@ -18,7 +18,7 @@ export function DestinationSearch({
   onClose: () => void;
   purpose?: "origin" | "destination";
   fixedLineId?: string;
-  excludedStationId?: string;
+  excluded?: Destination;
 }) {
   const [lineId, setLineId] = useState(
     fixedLineId ?? current?.lineId ?? lines[0].id,
@@ -41,7 +41,7 @@ export function DestinationSearch({
           <X />
         </button>
       </div>
-      <p className="modal-subtitle">เลือกสถานีในสายที่คุณกำลังเดินทาง</p>
+      <p className="modal-subtitle">เลือกได้ทุกสาย ระบบจะคำนวณจุดเปลี่ยนสายให้</p>
       <div className="search-input">
         <Search size={20} />
         <input
@@ -59,7 +59,7 @@ export function DestinationSearch({
               .filter(
                 (d) =>
                   (!fixedLineId || d.lineId === fixedLineId) &&
-                  d.stationId !== excludedStationId,
+                  (d.lineId !== excluded?.lineId || d.stationId !== excluded.stationId),
               )
               .map((d) => (
                 <button
@@ -99,7 +99,7 @@ export function DestinationSearch({
         {filtered.map((s) => (
           <button
             key={s.id}
-            disabled={s.id === excludedStationId}
+            disabled={lineId === excluded?.lineId && s.id === excluded.stationId}
             onClick={() => onSelect({ lineId, stationId: s.id })}
           >
             <span className="list-node" />
@@ -122,7 +122,7 @@ export function DestinationSearch({
         )}
       </div>
       <p className="coverage-note">
-        รองรับ 4 สายที่แสดง • ยังไม่คำนวณการเปลี่ยนสาย
+        รองรับการเปลี่ยนสายระหว่าง 4 สายที่แสดง
         <br />
         สายสีเหลืองและสีชมพูยังไม่เปิดให้ติดตาม
       </p>

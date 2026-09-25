@@ -3,6 +3,7 @@ import { resolveLocation } from "../services/api";
 import type { Destination, Resolution, Sample } from "../types";
 export function useTripTracking(
   sample: Sample | null,
+  origin: Destination | null,
   destination: Destination | null,
   enabled: boolean,
 ) {
@@ -40,7 +41,7 @@ export function useTripTracking(
     let live = true;
     const timeout = setTimeout(() => controller.abort(), 12000);
     setBusy(true);
-    resolveLocation(history.current, destination, controller.signal)
+    resolveLocation(history.current, destination, controller.signal, origin?.lineId === destination?.lineId)
       .then((next) => {
         if (!live) return;
         if (next.status === "tracking" || next.status === "arrived") {

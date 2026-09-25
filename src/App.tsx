@@ -73,6 +73,7 @@ export default function App() {
   const geo = useGeolocation((!!trip || scanning) && visible);
   const live = useTripTracking(
     geo.sample,
+    trip?.origin ?? null,
     trip?.destination ?? null,
     !!trip && visible && pwa.online,
   );
@@ -156,10 +157,7 @@ export default function App() {
     setOriginSource(source);
     setScanning(false);
     setScanMessage("");
-    if (
-      destination &&
-      (destination.lineId !== d.lineId || destination.stationId === d.stationId)
-    )
+    if (destination && destination.lineId === d.lineId && destination.stationId === d.stationId)
       setDestination(null);
   };
   const stop = () => {
@@ -290,7 +288,7 @@ export default function App() {
               >
                 <TrainFront size={23} />
                 <span>
-                  <small>{to ? line?.name : "ปลายทาง"}</small>
+                  <small>{to ? getLine(destination!.lineId)?.name : "ปลายทาง"}</small>
                   <strong>
                     {to?.nameTh ??
                       (origin ? "เลือกสถานีปลายทาง" : "เลือกสถานีที่ขึ้นก่อน")}
@@ -318,7 +316,7 @@ export default function App() {
             <p className="coverage-caption">
               BTS สุขุมวิท · สีลม / MRT น้ำเงิน · ม่วง
               <br />
-              เลือกขึ้นและลงในสายเดียวกัน
+              เปลี่ยนสายและเดินทางข้าม BTS–MRT ได้
             </p>
             {pwa.isIOS && !pwa.installed && (
               <button className="install-hint" onClick={() => setInfo(true)}>
@@ -469,10 +467,7 @@ export default function App() {
           purpose={search}
           current={search === "origin" ? origin : destination}
           recent={search === "origin" ? [] : recent}
-          fixedLineId={search === "destination" ? origin?.lineId : undefined}
-          excludedStationId={
-            search === "destination" ? origin?.stationId : undefined
-          }
+          excluded={search === "destination" ? origin ?? undefined : undefined}
           onClose={() => setSearch(null)}
           onSelect={(d) => {
             if (search === "origin") chooseOrigin(d, "เลือกเอง");
@@ -525,7 +520,7 @@ export default function App() {
             <h3>เลือก ขึ้น → ลง → เริ่มเดินทาง</h3>
             <p>
               เลือกสถานีที่ขึ้นเอง หรือใช้ GPS แล้วแตะยืนยันสถานี
-              เลือกปลายทางในสายเดียวกัน จากนั้นกดเริ่มเดินทาง
+              เลือกปลายทางได้ทุกสาย จากนั้นกดเริ่มเดินทาง
             </p>
             <h3>ใช้เป็นแอปบน iPhone</h3>
             <ol className="install-steps">

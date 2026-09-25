@@ -1,7 +1,17 @@
-import { getLine, isDestination, lines } from "./network";
+import { isDestination, lines } from "./network";
 import type { Destination, Sample, Station } from "../types";
 
-// Use the rail graph: the Blue Line branches at Tha Phra, so array order is not a route.
+const transfers: [Destination, Destination][] = [
+  [{ lineId: "bts-sukhumvit", stationId: "CEN" }, { lineId: "bts-silom", stationId: "CEN" }],
+  [{ lineId: "bts-sukhumvit", stationId: "E4" }, { lineId: "mrt-blue", stationId: "BL22" }],
+  [{ lineId: "bts-sukhumvit", stationId: "N8" }, { lineId: "mrt-blue", stationId: "BL13" }],
+  [{ lineId: "bts-silom", stationId: "S2" }, { lineId: "mrt-blue", stationId: "BL26" }],
+  [{ lineId: "bts-silom", stationId: "S12" }, { lineId: "mrt-blue", stationId: "BL34" }],
+  [{ lineId: "mrt-blue", stationId: "BL10" }, { lineId: "mrt-purple", stationId: "PP16" }],
+];
+const key = (d: Destination) => `${d.lineId}:${d.stationId}`;
+
+// Route over the complete network, including the supported BTS/MRT interchanges.
 export function journeyRoute(
   origin: Destination | null,
   destination: Destination | null,
@@ -10,22 +20,31 @@ export function journeyRoute(
     !origin ||
     !destination ||
     !isDestination(origin) ||
-    !isDestination(destination) ||
-    origin.lineId !== destination.lineId
+    !isDestination(destination)
   )
     return [];
-  const line = getLine(origin.lineId)!;
-  const queue: string[][] = [[origin.stationId]];
-  const seen = new Set([origin.stationId]);
+  const stations = new Map<string, Station>();
+  const neighbours = new Map<string, string[]>();
+  const connect = (a: string, b: string) => {
+    neighbours.set(a, [...(neighbours.get(a) ?? []), b]);
+    neighbours.set(b, [...(neighbours.get(b) ?? []), a]);
+  };
+  for (const line of lines) {
+    for (const station of line.stations)
+      stations.set(key({ lineId: line.id, stationId: station.id }), station);
+    for (const edge of line.edges ?? [])
+      connect(key({ lineId: line.id, stationId: edge.from }), key({ lineId: line.id, stationId: edge.to }));
+  }
+  for (const [a, b] of transfers) connect(key(a), key(b));
+  const start = key(origin), finish = key(destination);
+  const queue: string[][] = [[start]];
+  const seen = new Set([start]);
   for (let i = 0; i < queue.length; i++) {
     const path = queue[i];
     const last = path[path.length - 1];
-    if (last === destination.stationId)
-      return path.map((id) => line.stations.find((s) => s.id === id)!);
-    for (const edge of line.edges ?? []) {
-      const next =
-        edge.from === last ? edge.to : edge.to === last ? edge.from : null;
-      if (next && !seen.has(next)) {
+    if (last === finish) return path.map((id) => stations.get(id)!);
+    for (const next of neighbours.get(last) ?? []) {
+      if (!seen.has(next)) {
         seen.add(next);
         queue.push([...path, next]);
       }
