@@ -6,12 +6,14 @@ import {
 import { registerRoute, NavigationRoute } from "workbox-routing";
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+// Ship app fixes without making existing PWA tabs wait for a manual close.
+self.addEventListener("install", () => self.skipWaiting());
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL("index.html"), {
     denylist: [/^\/api\//, /^\/health/],
   }),
 );
-// Never cache GPS requests or API responses. A new app version waits for all old tabs to close.
+// Never cache GPS requests or API responses.
 self.addEventListener("activate", (event) =>
   event.waitUntil(
     Promise.all([
