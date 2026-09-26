@@ -24,12 +24,24 @@ export function DestinationSearch({
     fixedLineId ?? current?.lineId ?? lines[0].id,
   );
   const [query, setQuery] = useState("");
-  const line = getLine(lineId)!;
-  const filtered = line.stations.filter((s) =>
-    `${s.nameTh} ${s.nameEn} ${s.code}`
-      .toLowerCase()
-      .includes(query.toLowerCase().trim()),
+  const normalizedQuery = query.toLowerCase().trim();
+  const searching = !!normalizedQuery;
+  const searchableLines = lines.filter((line) =>
+    fixedLineId ? line.id === fixedLineId : searching || line.id === lineId,
   );
+  const filtered = searchableLines
+    .flatMap((line) =>
+      line.stations.map((station) => ({
+        ...station,
+        lineId: line.id,
+        lineName: line.name,
+      })),
+    )
+    .filter((station) =>
+      `${station.nameTh} ${station.nameEn} ${station.code}`
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
   return (
     <Modal
       label={purpose === "origin" ? "เลือกสถานีที่ขึ้น" : "เลือกปลายทาง"}
@@ -41,7 +53,9 @@ export function DestinationSearch({
           <X />
         </button>
       </div>
-      <p className="modal-subtitle">เลือกได้ทุกสาย ระบบจะคำนวณจุดเปลี่ยนสายให้</p>
+      <p className="modal-subtitle">
+        เลือกได้ทุกสาย ระบบจะคำนวณจุดเปลี่ยนสายให้
+      </p>
       <div className="search-input">
         <Search size={20} />
         <input
@@ -59,7 +73,8 @@ export function DestinationSearch({
               .filter(
                 (d) =>
                   (!fixedLineId || d.lineId === fixedLineId) &&
-                  (d.lineId !== excluded?.lineId || d.stationId !== excluded.stationId),
+                  (d.lineId !== excluded?.lineId ||
+                    d.stationId !== excluded.stationId),
               )
               .map((d) => (
                 <button
@@ -81,10 +96,13 @@ export function DestinationSearch({
           .map((l) => (
             <button
               key={l.id}
-              aria-pressed={l.id === lineId}
-              className={l.id === lineId ? "selected" : ""}
+              aria-pressed={!searching && l.id === lineId}
+              className={!searching && l.id === lineId ? "selected" : ""}
               style={{ "--line-color": l.color } as React.CSSProperties}
-              onClick={() => setLineId(l.id)}
+              onClick={() => {
+                setLineId(l.id);
+                setQuery("");
+              }}
             >
               <span />
               {l.name}
@@ -92,23 +110,30 @@ export function DestinationSearch({
           ))}
       </div>
       <div className="station-list-heading">
-        <h3 className="section-label">รายชื่อสถานี</h3>
+        <h3 className="section-label">
+          {searching && !fixedLineId ? "ผลค้นหาทุกสาย" : "รายชื่อสถานี"}
+        </h3>
         <span>{filtered.length} สถานี</span>
       </div>
       <div className="station-list">
         {filtered.map((s) => (
           <button
-            key={s.id}
-            disabled={lineId === excluded?.lineId && s.id === excluded.stationId}
-            onClick={() => onSelect({ lineId, stationId: s.id })}
+            key={`${s.lineId}:${s.id}`}
+            disabled={
+              s.lineId === excluded?.lineId && s.id === excluded.stationId
+            }
+            onClick={() => onSelect({ lineId: s.lineId, stationId: s.id })}
           >
             <span className="list-node" />
             <div>
               <strong>{s.nameTh}</strong>
-              <span>{s.nameEn}</span>
+              <span>
+                {s.nameEn}
+                {searching ? ` · ${s.lineName}` : ""}
+              </span>
             </div>
             <span className="station-code">{s.code}</span>
-            {current?.stationId === s.id && current.lineId === lineId ? (
+            {current?.stationId === s.id && current.lineId === s.lineId ? (
               <Check size={18} />
             ) : (
               <ChevronRight size={18} />

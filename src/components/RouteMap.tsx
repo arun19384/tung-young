@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Minus, Plus, X, ZoomIn } from "lucide-react";
 import { getStation } from "../data/network";
 import { journeyMapStops } from "../data/journey";
+import { Modal } from "./Modal";
 import type { Destination } from "../types";
 
 export function RouteMap({
@@ -161,11 +162,10 @@ export function RouteMap({
         ))}
       </div>
       {expanded && (
-        <div
+        <Modal
           className="route-map-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label="แผนที่การเดินทางแบบขยาย"
+          label="แผนที่การเดินทางแบบขยาย"
+          onClose={() => setExpanded(false)}
         >
           <div className="route-map-modal-header">
             <strong>แผนที่การเดินทาง</strong>
@@ -199,7 +199,7 @@ export function RouteMap({
               <Plus />
             </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

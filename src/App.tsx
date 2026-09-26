@@ -42,7 +42,10 @@ function savedTrip(): Trip | null {
   return value &&
     isDestination(value.origin) &&
     isDestination(value.destination) &&
-    (!value.route || (Array.isArray(value.route) && value.route.length > 1 && value.route.every(isDestination))) &&
+    (!value.route ||
+      (Array.isArray(value.route) &&
+        value.route.length > 1 &&
+        value.route.every(isDestination))) &&
     journeyRoute(value.origin, value.destination).length > 1 &&
     Number.isFinite(value.startedAt) &&
     Date.now() - value.startedAt >= 0 &&
@@ -75,6 +78,7 @@ export default function App() {
   const [fare, setFare] = useState<FareQuote | null>(null);
   const [fareIssue, setFareIssue] = useState("");
   const [fareBusy, setFareBusy] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [selectedRoute, setSelectedRoute] = useState<Destination[]>(
     () => trip?.route ?? [],
   );
@@ -157,6 +161,8 @@ export default function App() {
     origin?.stationId,
     destination?.lineId,
     destination?.stationId,
+    retry,
+    trip,
   ]);
   const result =
     trip && live.result && live.result.timestamp >= trip.startedAt
@@ -177,7 +183,7 @@ export default function App() {
   const from = origin ? getStation(origin) : null;
   const to = destination ? getStation(destination) : null;
   const line = origin ? getLine(origin.lineId) : null;
-  const remaining = result?.remainingStations ?? Math.max(0, route.length - 1);
+  const remaining = result?.remainingStations ?? estimate?.railStops ?? 0;
   const arrived = fresh && result?.arrived;
   const candidates =
     scanning && geo.sample && geo.sample.timestamp >= scanStarted
@@ -337,6 +343,21 @@ export default function App() {
                 </p>
               )}
               <div className="step-divider" />
+              {origin && destination && (
+                <button
+                  className="gps-button"
+                  onClick={() => {
+                    setSelectedRoute([]);
+                    setFare(null);
+                    setOrigin(destination);
+                    setDestination(origin);
+                    setOriginSource("สลับเส้นทาง");
+                    setScanning(false);
+                  }}
+                >
+                  <Repeat2 size={18} /> สลับต้นทาง–ปลายทาง
+                </button>
+              )}
               <div className="step-label">
                 <span>2</span>
                 <h2>จะลงสถานีไหน</h2>
@@ -364,7 +385,12 @@ export default function App() {
               {fareIssue && (
                 <p className="fare-issue" role="alert">
                   {fareIssue} — ยังยืนยันเส้นทางที่ถูกที่สุดไม่ได้
-                  กรุณาเลือกสถานีอีกครั้ง
+                  <button
+                    className="gps-button"
+                    onClick={() => setRetry((value) => value + 1)}
+                  >
+                    ลองคำนวณอีกครั้ง
+                  </button>
                 </p>
               )}
               {route.length > 1 && (
